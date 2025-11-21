@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>404 Found - Lost & Found Community</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google font -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg-1: #e6fbff;
+      --bg-2: #dff6fb;
+      --teal-600: #06b6d4;
+      --muted: #64748b;
+      --card-bg: rgba(255,255,255,0.85);
+    }
+    *{ box-sizing:border-box; font-family:'Nunito',sans-serif; }
+    html,body{ height:100%; margin:0; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; color:#04263a; }
+
+    /* Blended background - softened stops for smooth flow */
+    body{
+      background:
+        radial-gradient(600px 360px at 8% 8%, rgba(6,182,212,0.10), transparent 30%),
+        radial-gradient(520px 320px at 92% 92%, rgba(6,182,212,0.07), transparent 30%),
+        linear-gradient(135deg, #f7feff 0%, #eefcff 28%, #e2fbfb 50%, #d6f7fb 75%, #ccf4fb 100%);
+      min-height:100vh;
+      overflow-x:hidden;
+    }
+    body::after{
+      content:'';
+      position:fixed; inset:0; pointer-events:none;
+      background: radial-gradient(60% 40% at 50% 10%, rgba(255,255,255,0.03), transparent 30%);
+      mix-blend-mode: overlay;
+    }
+
+    /* Glass card */
+    .ghibli-card{
+      background: var(--card-bg);
+      backdrop-filter: blur(8px) saturate(120%);
+      border: 1px solid rgba(8,25,40,0.05);
+      box-shadow: 0 12px 30px rgba(2,6,23,0.06);
+      transition: transform .22s ease, box-shadow .22s ease;
+    }
+    .ghibli-card:hover{ transform:translateY(-6px); box-shadow:0 20px 48px rgba(2,6,23,0.08); }
+
+    /* Bounce for title + tagline */
+    .bounce { animation: bounce 3s ease-in-out infinite; transform-origin:center; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)} }
+    .bounce-slow { animation-duration:3.6s; }
+
+    /* Subtle float for decorations */
+    .floating { animation: float 6s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)} }
+
+    /* Fade-in helper */
+    .fade-in { opacity:0; transform:translateY(14px); animation:fadeIn .6s ease forwards; }
+    @keyframes fadeIn { to{ opacity:1; transform:translateY(0); } }
+
+    /* Choice button (Lost/Found) */
+    .choice-btn{
+      transition: transform .18s cubic-bezier(.2,.9,.3,1), box-shadow .18s ease, background .18s ease, border-color .18s ease;
+      border: 1px solid rgba(7,22,30,0.04);
+      cursor: pointer;
+    }
+    .choice-btn.selected{
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 18px 40px rgba(6,182,212,0.10);
+      border-color: rgba(6,182,212,0.22);
+      background: linear-gradient(180deg, rgba(6,182,212,0.06), rgba(6,182,212,0.02));
+    }
+
+    /* small silhouettes used beside card titles */
+    .silhouette { width:36px; height:36px; opacity:0.95; }
+
+    .skeleton{ background:linear-gradient(90deg,#f0f0f0 25%,#e6e6e6 50%,#f0f0f0 75%); background-size:200% 100%; animation:loading 1.4s linear infinite; }
+    @keyframes loading{ to{ background-position:-200% 0 } }
+
+    /* upload preview */
+    .img-preview { max-width:100%; height:96px; object-fit:cover; border-radius:10px; display:block; margin-top:8px; }
+
+    /* Swipe deck styles */
+    .deck { position:relative; width:100%; max-width:520px; height:420px; margin:0 auto; }
+    .card {
+      position:absolute;
+      width:100%;
+      height:100%;
+      border-radius:18px;
+      background:white;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      box-shadow: 0 20px 50px rgba(2,6,23,0.12);
+      transition: transform .28s cubic-bezier(.2,.9,.3,1), opacity .28s ease;
+      will-change: transform, opacity;
+      touch-action:none;
+    }
+    .card .image {
+      height:58%;
+      background-size:cover;
+      background-position:center;
+    }
+    .card .meta { padding:16px; flex:1; display:flex; flex-direction:column; gap:8px; }
+    .card .meta h4 { font-weight:700; color:#07324a; }
+    .card .meta p { color:#475569; font-size:14px; line-height:1.4; }
+
+    /* small peek behind */
+    .card.deck-back-1 { transform: translateY(12px) scale(.96); filter: saturate(.98); }
+    .card.deck-back-2 { transform: translateY(22px) scale(.92); filter: saturate(.96); }
+
+    /* active interactions */
+    .card.dragging { transition:none; }
+    .controls { display:flex; gap:12px; justify-content:center; margin-top:12px; }
+
+    .btn-mini { padding:10px 14px; border-radius:12px; border:1px solid rgba(2,6,23,0.06); background:white; cursor:pointer; box-shadow:0 8px 18px rgba(2,6,23,0.06); }
+    .btn-reject { background:#ef4444; color:white; border:none; }
+    .btn-accept { background:#06b6d4; color:white; border:none; }
+
+    /* modal base */
+    .modal { display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:90; }
+    .modal.active { display:flex; }
+    .modal-backdrop { position:absolute; inset:0; background:rgba(2,6,23,0.45); backdrop-filter: blur(2px); }
+
+    /* match toast */
+    .toast { position:fixed; right:20px; bottom:20px; background:#0ea5a9; color:white; padding:10px 14px; border-radius:10px; box-shadow:0 8px 28px rgba(2,6,23,0.12); transform:translateY(10px); opacity:0; transition:opacity .25s, transform .25s; z-index:9999; }
+    .toast.show { opacity:1; transform:translateY(0); }
+
+    /* coupon modal styles (light blue tint) */
+    .coupon-modal .box { width:100%; max-width:880px; margin: 0 16px; background: linear-gradient(180deg, #e6f2ff, #f4f9ff); border-radius:22px; padding:26px; box-shadow:0 24px 56px rgba(4,20,46,0.12); border:1px solid rgba(2,6,23,0.04); }
+    .coupon-grid { display:grid; gap:16px; grid-template-columns:1fr; }
+    @media(min-width:720px){ .coupon-grid { grid-template-columns:1fr 1fr } }
+
+    /* coupon small helpers */
+    .coupon-card { display:flex; gap:12px; align-items:center; padding:12px; border-radius:12px; background:white; border:1px solid rgba(2,6,23,0.03); box-shadow:0 8px 20px rgba(2,6,23,0.06); }
+    .coupon-badge { width:68px; height:68px; border-radius:10px; color:white; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; }
+    .coupon-action { margin-left:auto; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+
+    /* small chat styles */
+    .chat-modal .box { width:100%; max-width:920px; height:78vh; margin: 0 8px; background:white; border-radius:12px 12px 0 0; display:flex; flex-direction:column; overflow:hidden; }
+    .chat-header { padding:12px 16px; border-bottom:1px solid rgba(2,6,23,0.04); display:flex; align-items:center; gap:12px; }
+    .chat-messages { padding:14px; flex:1; overflow-y:auto; background: linear-gradient(180deg, rgba(245,248,250,0.4), rgba(255,255,255,0.0)); }
+    .chat-input { padding:12px; border-top:1px solid rgba(2,6,23,0.04); background:white; display:flex; gap:8px; align-items:center; }
+
+    /* small message bubbles */
+    .bubble { display:inline-block; padding:10px 12px; border-radius:12px; max-width:78%; }
+    .bubble.me { background:#06b6d4; color:white; margin-left:auto; }
+    .bubble.them { background:#eef2ff; color:#0b3450; margin-right:auto; }
+
+    /* accessibility focus */
+    *:focus{ outline: 3px solid rgba(6,182,212,0.14); outline-offset:2px; }
+
+    @media (min-width:1024px){ .min-w-72{ min-width:340px } }
+  </style>
+</head>
+<body class="overflow-x-hidden">
+
+  <!-- Header -->
+  <header class="relative z-10 py-8 px-6">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+      <!-- Title + tagline -->
+      <div>
+        <h1 id="mainTitle" class="text-4xl font-extrabold tracking-tight text-slate-800 bounce" style="background:linear-gradient(90deg,#0f172a,#075985); -webkit-background-clip:text; color:transparent;">404 Found</h1>
+        <div id="tagline" class="text-teal-700 mt-1 text-sm bounce-slow">Where lost things find their way home.</div>
+      </div>
+
+      <div class="space-x-4">
+        <button onclick="openModalById('updatesModal')" class="bg-gradient-to-r from-teal-500 to-cyan-500 text-white px-4 py-2 rounded-2xl shadow font-medium">Updates</button>
+        <button onclick="openModalById('faqModal')" class="bg-gradient-to-r from-cyan-500 to-sky-400 text-white px-4 py-2 rounded-2xl shadow font-medium">FAQ</button>
+        <button onclick="openSwipe()" id="openSwipeBtn" class="bg-gradient-to-r from-emerald-400 to-teal-500 text-white px-4 py-2 rounded-2xl shadow font-medium">Found Items</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-6 py-12">
+    <!-- HERO SECTION (replaced earlier with the approved design) -->
+    <section class="text-center mb-24 fade-in relative">
+
+      <div class="flex justify-center items-center gap-3 mb-6">
+        <!-- left icon -->
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#1e90ff" class="opacity-80" aria-hidden="true">
+          <circle cx="12" cy="5" r="4"/>
+          <rect x="9" y="9" width="6" height="10" rx="3"/>
+          <rect x="7" y="10" width="3" height="8" rx="2"/>
+          <rect x="14" y="10" width="3" height="8" rx="2"/>
+        </svg>
+
+        <h2 class="text-6xl font-extrabold leading-tight tracking-tight" style="color:#0f172a;">
+          Find What's Lost.<br>
+          <span style="color:#2563eb;">Return What's Found.</span>
+        </h2>
+
+        <!-- right icon -->
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="#1e90ff" class="opacity-80" aria-hidden="true">
+          <circle cx="12" cy="5" r="4"/>
+          <rect x="9" y="9" width="6" height="10" rx="3"/>
+          <rect x="7" y="10" width="3" height="8" rx="2"/>
+          <rect x="14" y="10" width="3" height="8" rx="2"/>
+        </svg>
+      </div>
+
+      <div class="flex flex-col md:flex-row gap-10 justify-center items-center mt-10">
+        <!-- Lost Card -->
+        <div onclick="openModalById('lostModal')"
+          class="w-full max-w-sm p-10 rounded-3xl bg-white shadow-xl transition-all hover:scale-105 cursor-pointer"
+          style="background:linear-gradient(to bottom right, #eef6ff, #ffffff); border-radius:25px;">
+          <div class="w-20 h-20 mx-auto mb-6 flex items-center justify-center rounded-2xl shadow" style="background:#1e90ff;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5z"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold text-slate-900 mb-1">I Lost Something</h3>
+          <p class="text-slate-600 mb-2">Report your lost item and we'll help you find it</p>
+        </div>
+
+        <!-- Found Card -->
+        <div onclick="openModalById('foundModal')"
+          class="w-full max-w-sm p-10 rounded-3xl bg-white shadow-xl transition-all hover:scale-105 cursor-pointer"
+          style="background:linear-gradient(to bottom right, #e8fff8, #ffffff); border-radius:25px;">
+          <div class="w-20 h-20 mx-auto mb-6 flex items-center justify-center rounded-2xl shadow" style="background:#0ca5a5;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <h3 class="text-2xl font-bold text-slate-900 mb-1">I Found Something</h3>
+          <p class="text-slate-600 mb-2">Help return someone's lost item</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- About -->
+    <section class="mb-16 fade-in">
+      <div class="ghibli-card p-8 rounded-3xl">
+        <h3 class="text-3xl font-bold text-slate-800 mb-4 text-center">About 404 Found</h3>
+        <p class="text-slate-600 text-center max-w-3xl mx-auto">At 404 Found, we believe no valuable memory or belonging should stay lost. We are building a community-driven platform where technology helps lost things find their way back.</p>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="mb-20 fade-in">
+      <div class="ghibli-card p-12 rounded-3xl">
+        <h3 class="text-4xl font-bold text-slate-800 mb-12 text-center tracking-tight">How It Works</h3>
+        <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100/30">
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">📝</div>
+            <h4 class="font-bold text-xl mb-4 text-slate-800">Step 1: Report</h4>
+            <p class="text-slate-600 leading-relaxed">Whether you lost or found an item, simply click the respective button and fill out the form.</p>
+          </div>
+          <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-teal-50 to-teal-100/30">
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🔍</div>
+            <h4 class="font-bold text-xl mb-4 text-slate-800">Step 2: Match</h4>
+            <p class="text-slate-600 leading-relaxed">Our system connects lost items with their owners through real-time updates and notifications.</p>
+          </div>
+          <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-cyan-50 to-cyan-100/30">
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">🤝</div>
+            <h4 class="font-bold text-xl mb-4 text-slate-800">Step 3: Retrieve</h4>
+            <p class="text-slate-600 leading-relaxed">Arrange to return the item safely with guidance from our platform.</p>
+          </div>
+          <div class="text-center p-6 rounded-2xl bg-gradient-to-br from-sky-50 to-sky-100/30">
+            <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-sky-500 to-sky-600 rounded-2xl flex items-center justify-center text-3xl shadow-lg">⭐</div>
+            <h4 class="font-bold text-xl mb-4 text-slate-800">Step 4: Feedback</h4>
+            <p class="text-slate-600 leading-relaxed">Share your experience to help improve our service and assist others in the community.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Recently Found -->
+    <section class="mb-16 fade-in">
+      <h3 class="text-2xl font-bold text-slate-800 mb-4 text-center">Recently Found Items</h3>
+      <div class="max-w-4xl mx-auto">
+        <div class="ghibli-card p-6 rounded-3xl text-center">
+          <p class="text-slate-600">No items found yet — items will appear here once reported and verified.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feedback (Rating) -->
+    <section class="mb-20 fade-in">
+      <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center">Share Your Experience</h3>
+      <div class="max-w-2xl mx-auto">
+        <div class="ghibli-card p-6 rounded-3xl">
+          <form id="reviewForm" onsubmit="submitReview(event)" class="space-y-4">
+            <div>
+              <label class="block font-semibold mb-1 text-slate-700">Your Name</label>
+              <input id="reviewName" type="text" required class="w-full p-3 border rounded-2xl focus:border-teal-400" placeholder="Enter your name">
+            </div>
+
+            <div>
+              <label class="block font-semibold mb-2 text-slate-700">Rate Your Experience</label>
+              <div id="ratingGroup" class="flex gap-3 mb-2" role="radiogroup" aria-label="Rate your experience">
+                <button type="button" class="star-btn star-inactive text-3xl" data-value="1" aria-checked="false" onclick="setRating(1)">⭐</button>
+                <button type="button" class="star-btn star-inactive text-3xl" data-value="2" aria-checked="false" onclick="setRating(2)">⭐</button>
+                <button type="button" class="star-btn star-inactive text-3xl" data-value="3" aria-checked="false" onclick="setRating(3)">⭐</button>
+                <button type="button" class="star-btn star-inactive text-3xl" data-value="4" aria-checked="false" onclick="setRating(4)">⭐</button>
+                <button type="button" class="star-btn star-inactive text-3xl" data-value="5" aria-checked="false" onclick="setRating(5)">⭐</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block font-semibold mb-1 text-slate-700">Tell Us About Your Experience</label>
+              <textarea id="reviewText" required class="w-full p-3 border rounded-2xl h-28" placeholder="Share your story..."></textarea>
+            </div>
+
+            <button type="submit" class="w-full bg-gradient-to-r from-teal-500 to-cyan-500 text-white py-3 rounded-2xl font-semibold">Share My Review ✨</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ----------------- SWIPE + MATCH UI (modal) ----------------- -->
+  <!-- Swipe drawer modal -->
+  <div id="swipeModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" onclick="closeSwipe()" aria-hidden="true"></div>
+    <div class="ghibli-card p-6 rounded-2xl max-w-3xl mx-4" style="z-index:95; position:relative;">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-bold">Matched Results</h3>
+        <div class="flex items-center gap-3">
+          <button id="undoBtn" class="btn-mini" disabled onclick="undoSwipe()">↺ Undo</button>
+          <button onclick="closeSwipe()" class="btn-mini">Close</button>
+        </div>
+      </div>
+
+      <!-- deck -->
+      <div class="deck mx-auto" id="deckContainer" aria-live="polite" style="margin-top:6px;">
+        <!-- JS will populate card elements here; up to any number of matches, but we show 3 visible stack -->
+        <div id="noItemsPlaceholder" class="text-center text-slate-600" style="display:none;padding-top:120px;">
+          <p class="text-lg font-medium mb-1">No matches available right now</p>
+          <p class="text-sm">We'll notify you when new matches are found.</p>
+        </div>
+      </div>
+
+      <div class="controls mt-6">
+        <button id="rejectBtn" class="btn-mini btn-reject" onclick="manualReject()">✕ Reject</button>
+        <button id="acceptBtn" class="btn-mini btn-accept" onclick="manualAccept()">♥ Accept</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Match Modal (shown after accept) -->
+  <div id="matchModal" class="modal" aria-hidden="true" role="dialog" aria-label="Match">
+    <div class="modal-backdrop"></div>
+    <div class="ghibli-card p-6 rounded-2xl max-w-lg mx-4 text-center" style="z-index:96;">
+      <h2 id="matchTitle" class="text-xl font-bold mb-2">It's a Match! 🎉</h2>
+      <p id="matchInfo" class="text-slate-600 mb-4">You have matched with the finder.</p>
+      <div class="flex gap-3 justify-center">
+        <button onclick="openMatchChat()" class="px-4 py-2 rounded bg-teal-600 text-white">Start Chat</button>
+        <button onclick="closeModalById('matchModal')" class="px-4 py-2 rounded border">Later</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat Modal (bottom sheet like your screenshot) -->
+  <div id="matchChat" class="modal chat-modal" aria-hidden="true" style="align-items:flex-end; padding:0;">
+    <div class="modal-backdrop" onclick="closeMatchChat()"></div>
+    <div class="chat-modal box" style="z-index:97; position:relative;">
+      <div class="chat-header">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">👤</div>
+          <div>
+            <div id="chatHeaderTitle" class="font-semibold">Finder</div>
+            <div id="chatHeaderSubtitle" class="text-xs text-slate-500">Matched item</div>
+          </div>
+        </div>
+
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+          <!-- Coupon trigger in header -->
+          <button id="discountBtn" onclick="openCoupons()" class="px-3 py-2 bg-green-200 rounded-full font-semibold hover:bg-green-300 transition">View Discounts!</button>
+          <button onclick="closeMatchChat()" class="px-3 py-2 text-slate-600 hover:text-slate-800 transition">✕</button>
+        </div>
+      </div>
+
+      <div id="chatMessages" class="chat-messages">
+        <div id="chatEmptyPlaceholder" class="text-center text-slate-500">
+          <p>No messages yet. Start the conversation.</p>
+        </div>
+      </div>
+
+      <div class="chat-input">
+        <input id="matchChatInput" class="flex-1 p-3 border rounded-2xl" placeholder="Type a message..." aria-label="Message input">
+        <button id="matchSendBtn" class="px-4 py-2 bg-teal-600 text-white rounded-2xl" onclick="sendMatchChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coupon Modal (center float, light blue tint) -->
+  <div id="couponModal" class="modal" aria-hidden="true" role="dialog" aria-label="Coupons">
+    <div class="modal-backdrop" onclick="closeCoupons()"></div>
+    <div class="coupon-modal box" style="z-index:98;">
+      <button onclick="closeCoupons()" class="absolute top-4 right-6 text-gray-600 text-2xl font-bold hover:text-gray-800">&times;</button>
+      <h2 class="text-3xl font-extrabold text-slate-800 mb-6 text-center">Available Discounts</h2>
+      <div class="coupon-grid">
+        <!-- 40% -->
+        <div class="coupon-card">
+          <div class="coupon-badge" style="background:linear-gradient(180deg,#68d391,#2f855a)">40%<div style="font-size:10px;font-weight:700">OFF</div></div>
+          <div>
+            <div class="font-bold text-lg text-slate-900">Food Coupon</div>
+            <div class="text-sm text-slate-600">Min order $40 • Valid until Dec 2099</div>
+            <div style="margin-top:8px;"><span class="code-pill font-bold text-green-700 bg-green-100 px-2 py-1 rounded">FOOD40</span></div>
+          </div>
+          <div class="coupon-action">
+            <button class="redeem-btn" data-code="FOOD40" onclick="redeemCoupon(this)">Redeem</button>
+          </div>
+        </div>
+
+        <!-- 50% -->
+        <div class="coupon-card">
+          <div class="coupon-badge" style="background:linear-gradient(180deg,#63b3ed,#2b6cb0)">50%<div style="font-size:10px;font-weight:700">OFF</div></div>
+          <div>
+            <div class="font-bold text-lg text-slate-900">Food Coupon</div>
+            <div class="text-sm text-slate-600">Min order $50 • Valid until Dec 2099</div>
+            <div style="margin-top:8px;"><span class="code-pill font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded">FOOD50</span></div>
+          </div>
+          <div class="coupon-action">
+            <button class="redeem-btn" data-code="FOOD50" onclick="redeemCoupon(this)">Redeem</button>
+          </div>
+        </div>
+
+        <!-- 60% -->
+        <div class="coupon-card">
+          <div class="coupon-badge" style="background:linear-gradient(180deg,#f56565,#c53030)">60%<div style="font-size:10px;font-weight:700">OFF</div></div>
+          <div>
+            <div class="font-bold text-lg text-slate-900">Food Coupon</div>
+            <div class="text-sm text-slate-600">Min order $60 • Valid until Dec 2099</div>
+            <div style="margin-top:8px;"><span class="code-pill font-bold text-red-700 bg-red-100 px-2 py-1 rounded">FOOD60</span></div>
+          </div>
+          <div class="coupon-action">
+            <button class="redeem-btn" data-code="FOOD60" onclick="redeemCoupon(this)">Redeem</button>
+          </div>
+        </div>
+
+        <!-- 70% -->
+        <div class="coupon-card">
+          <div class="coupon-badge" style="background:linear-gradient(180deg,#f6ad55,#d97706)">70%<div style="font-size:10px;font-weight:700">OFF</div></div>
+          <div>
+            <div class="font-bold text-lg text-slate-900">Food Coupon</div>
+            <div class="text-sm text-slate-600">Min order $70 • Valid until Dec 2099</div>
+            <div style="margin-top:8px;"><span class="code-pill font-bold text-orange-700 bg-orange-100 px-2 py-1 rounded">FOOD70</span></div>
+          </div>
+          <div class="coupon-action">
+            <button class="redeem-btn" data-code="FOOD70" onclick="redeemCoupon(this)">Redeem</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Misc Modals: Updates / FAQ / Lost / Found -->
+  <div id="updatesModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" onclick="closeModalById('updatesModal')"></div>
+    <div class="ghibli-card p-6 rounded-2xl max-w-2xl mx-4" style="z-index:92;">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-slate-800">Recent Updates</h3>
+        <button onclick="closeModalById('updatesModal')" class="text-slate-500 text-xl">✕</button>
+      </div>
+      <div><p class="text-slate-600">No recent updates.</p></div>
+    </div>
+  </div>
+
+  <div id="faqModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" onclick="closeModalById('faqModal')"></div>
+    <div class="ghibli-card p-6 rounded-2xl max-w-2xl mx-4" style="z-index:92;">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-slate-800">Frequently Asked Questions</h3>
+        <button onclick="closeModalById('faqModal')" class="text-slate-500 text-xl">✕</button>
+      </div>
+      <div class="space-y-3 text-slate-600">
+        <div><strong>How do I report a lost item?</strong><p>Click "I Lost Something" and fill the form.</p></div>
+        <div><strong>Is this service free?</strong><p>Yes — 404 Found is free to use.</p></div>
+        <div><strong>How do I contact someone who found my item?</strong><p>You'll get secure contact options when matched.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lost Modal -->
+  <div id="lostModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" onclick="closeModalById('lostModal')"></div>
+    <div class="ghibli-card p-6 rounded-2xl max-w-md mx-4" style="z-index:92;">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-red-600">Report Lost Item</h3>
+        <button onclick="closeModalById('lostModal')" class="text-slate-500 text-xl">✕</button>
+      </div>
+      <form id="lostForm" onsubmit="submitLostForm(event)" class="space-y-3">
+        <div>
+          <label class="block text-sm font-semibold mb-1">Item Name</label>
+          <input id="lostItemName" type="text" required class="w-full p-2 border rounded" placeholder="e.g., Blue backpack">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Where did you lose it?</label>
+          <input id="lostLocation" type="text" required class="w-full p-2 border rounded" placeholder="e.g., Central Park">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Description</label>
+          <textarea id="lostDescription" required class="w-full p-2 border rounded h-24" placeholder="Describe your item..."></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Your Contact</label>
+          <input id="lostContact" type="email" required class="w-full p-2 border rounded" placeholder="your.email@example.com">
+        </div>
+
+        <!-- Simple Choose Image upload (Lost) -->
+        <div>
+          <label class="block text-sm font-semibold mb-1">Add an image (optional)</label>
+          <input id="lostImageInput" type="file" accept="image/*" class="block w-full" onchange="handleImagePreview(this, 'lostImagePreview')" />
+          <img id="lostImagePreview" class="img-preview" style="display:none;" alt="Lost item preview">
+        </div>
+
+        <button type="submit" class="w-full bg-red-500 text-white py-2 rounded font-semibold">Report Lost Item</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Found Modal -->
+  <div id="foundModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" onclick="closeModalById('foundModal')"></div>
+    <div class="ghibli-card p-6 rounded-2xl max-w-md mx-4" style="z-index:92;">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-emerald-700">Report Found Item</h3>
+        <button onclick="closeModalById('foundModal')" class="text-slate-500 text-xl">✕</button>
+      </div>
+      <form id="foundForm" onsubmit="submitFoundForm(event)" class="space-y-3">
+        <div>
+          <label class="block text-sm font-semibold mb-1">Item Name</label>
+          <input id="foundItemName" type="text" required class="w-full p-2 border rounded" placeholder="e.g., Red wallet">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Where did you find it?</label>
+          <input id="foundLocation" type="text" required class="w-full p-2 border rounded" placeholder="e.g., Airport">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Description</label>
+          <textarea id="foundDescription" required class="w-full p-2 border rounded h-24" placeholder="Describe the item..."></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold mb-1">Your Contact</label>
+          <input id="foundContact" type="email" required class="w-full p-2 border rounded" placeholder="your.email@example.com">
+        </div>
+
+        <!-- Simple Choose Image upload (Found) -->
+        <div>
+          <label class="block text-sm font-semibold mb-1">Add an image (optional)</label>
+          <input id="foundImageInput" type="file" accept="image/*" class="block w-full" onchange="handleImagePreview(this, 'foundImagePreview')" />
+          <img id="foundImagePreview" class="img-preview" style="display:none;" alt="Found item preview">
+        </div>
+
+        <button type="submit" class="w-full bg-emerald-500 text-white py-2 rounded font-semibold">Report Found Item</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="couponToast" class="toast" role="status" aria-live="polite">Coupon copied to clipboard</div>
+
+  <!-- ----------------- SCRIPTS ----------------- -->
+  <script>
+    /* ========== Utilities ========== */
+    function openModalById(id){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.classList.add('active');
+      el.setAttribute('aria-hidden','false');
+    }
+    function closeModalById(id){
+      const el = document.getElementById(id);
+      if(!el) return;
+      el.classList.remove('active');
+      el.setAttribute('aria-hidden','true');
+    }
+
+    // simple wrappers for specific modals
+    function openSwipe(){ openModalById('swipeModal'); }
+    function closeSwipe(){ closeModalById('swipeModal'); }
+
+    /* ========== Rating stars ========== */
+    let currentRating = 0;
+    const starButtons = Array.from(document.querySelectorAll('.star-btn'));
+    function setRating(r) {
+      r = Number(r);
+      if (currentRating === r) currentRating = 0; else currentRating = r;
+      updateStars();
+    }
+    function updateStars() {
+      starButtons.forEach((btn, i) => {
+        const value = i + 1;
+        if (value <= currentRating) {
+          btn.classList.add('star-active'); btn.classList.remove('star-inactive'); btn.setAttribute('aria-checked','true');
+        } else {
+          btn.classList.remove('star-active'); btn.classList.add('star-inactive'); btn.setAttribute('aria-checked','false');
+        }
+      });
+    }
+    starButtons.forEach((btn, idx) => {
+      btn.addEventListener('mouseenter', () => {
+        starButtons.forEach((b, i) => {
+          if (i <= idx) { b.classList.add('star-active'); b.classList.remove('star-inactive'); }
+          else { b.classList.remove('star-active'); b.classList.add('star-inactive'); }
+        });
+      });
+      btn.addEventListener('mouseleave', () => updateStars());
+    });
+
+    function submitReview(e) {
+      e.preventDefault();
+      const name = document.getElementById('reviewName').value.trim();
+      if (!currentRating) { alert('Please select a rating'); return; }
+      alert(Thanks ${name || 'there'} — your ${currentRating}/5 review was submitted.);
+      document.getElementById('reviewForm').reset();
+      currentRating = 0; updateStars();
+    }
+
+    /* ========== Image preview helper ========== */
+    function handleImagePreview(inputEl, previewId){
+      const file = inputEl.files && inputEl.files[0];
+      const preview = document.getElementById(previewId);
+      if (!file || !preview) return;
+      const url = URL.createObjectURL(file);
+      preview.src = url;
+      preview.style.display = 'block';
+      preview.onload = () => { URL.revokeObjectURL(url); };
+    }
+
+    /* ========== Lost / Found small forms ========== */
+    function submitLostForm(e){
+      e.preventDefault();
+      alert('Thanks — lost item reported');
+      closeModalById('lostModal');
+      document.getElementById('lostForm').reset();
+      const p = document.getElementById('lostImagePreview'); if(p) p.style.display='none';
+    }
+    function submitFoundForm(e){
+      e.preventDefault();
+      alert('Thanks — found item reported');
+      closeModalById('foundModal');
+      document.getElementById('foundForm').reset();
+      const p = document.getElementById('foundImagePreview'); if(p) p.style.display='none';
+    }
+
+    /* ========== SOUND (WebAudio) ========== */
+    const audioCtx = (typeof AudioContext !== 'undefined') ? new AudioContext() : null;
+    function playTone(freq, duration=0.12, type='sine', gain=0.08){
+      if (!audioCtx) return;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.value = gain;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start();
+      setTimeout(()=> { o.stop(); }, duration*1000);
+    }
+    function playSound(name){
+      // small palette of sounds: swipe, match, send
+      try {
+        if (name === 'swipe') { playTone(220, 0.08, 'sine', 0.06); }
+        if (name === 'reject') { playTone(160, 0.08, 'sine', 0.05); }
+        if (name === 'match') { playTone(540, 0.12, 'triangle', 0.12); setTimeout(()=>playTone(760,0.10,'sine',0.09),80); }
+        if (name === 'send') { playTone(720, 0.06,'square',0.06); }
+      } catch(e){}
+    }
+
+    /* ========== SWIPE DECK (stacked 3 visible) ========== */
+    let matchedItems = []; // array of items from backend
+    let currentIndex = 0;
+    let swipeHistory = [];
+    let matchedItem = null;
+
+    const deckContainer = document.getElementById('deckContainer');
+    const undoBtn = document.getElementById('undoBtn');
+    const noItemsPlaceholder = document.getElementById('noItemsPlaceholder');
+
+    function clearDeck(){
+      deckContainer.querySelectorAll('.card').forEach(n=>n.remove());
+    }
+
+    // create a card element from item
+    function createCardElement(item, idxFromTop){
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.setAttribute('data-index', item.id || idxFromTop);
+      if(idxFromTop===1) card.classList.add('deck-back-1');
+      if(idxFromTop===2) card.classList.add('deck-back-2');
+
+      const imgUrl = item.image || '';
+      const imageDiv = document.createElement('div');
+      imageDiv.className = 'image';
+      imageDiv.style.backgroundImage = imgUrl ? url('${escapeHtml(imgUrl)}') : linear-gradient(180deg,#f0f7fb,#eaf8ff);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.innerHTML = `
+        <h4>${escapeHtml(item.name || 'Item')}</h4>
+        <p class="text-sm text-slate-600">${escapeHtml(item.description || '')}</p>
+        <div style="margin-top:auto; display:flex; gap:8px; align-items:center;">
+          <div class="text-xs text-slate-500">📍 ${escapeHtml(item.location || 'Location')}</div>
+          <div style="margin-left:auto; font-size:13px; color:#0b3b35; font-weight:700;">${escapeHtml(item.finderName || 'Finder')}</div>
+        </div>
+      `;
+
+      card.appendChild(imageDiv);
+      card.appendChild(meta);
+
+      // attach pointer handlers for drag
+      enableDragOnCard(card, item);
+
+      return card;
+    }
+
+    function renderDeck(){
+      clearDeck();
+      if (!matchedItems || matchedItems.length===0){
+        noItemsPlaceholder.style.display = 'block';
+        undoBtn.disabled = swipeHistory.length === 0;
+        return;
+      }
+      noItemsPlaceholder.style.display = 'none';
+
+      // show up to 3 cards: top is currentIndex, behind are currentIndex+1, +2
+      const visible = matchedItems.slice(currentIndex, currentIndex+3);
+      // render back ones first
+      visible.reverse().forEach((it, revIdx) => {
+        const idxFromTop = revIdx; // 0 = top, 1 = back-1, 2 = back-2
+        const cardEl = createCardElement(it, idxFromTop);
+        // style z-index such that top is highest
+        cardEl.style.zIndex = 50 + (3 - revIdx);
+        deckContainer.appendChild(cardEl);
+      });
+
+      undoBtn.disabled = swipeHistory.length === 0;
+    }
+
+    // helper: escape HTML for safety
+    function escapeHtml(unsafe = '') {
+      return String(unsafe).replace(/[&<"'>]/g, (m)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' })[m]);
+    }
+
+    // drag logic (supports mouse and touch)
+    function enableDragOnCard(card, item){
+      let startX=0, startY=0, currentX=0, currentY=0, isDragging=false;
+      const threshold = 110; // px to consider accept/reject
+      card.addEventListener('pointerdown', startDrag);
+      card.addEventListener('pointerup', endDrag);
+      card.addEventListener('pointermove', onMove);
+      card.addEventListener('pointercancel', endDrag);
+      card.addEventListener('touchstart', (e)=>{}, {passive:false});
+
+      function startDrag(e){
+        isDragging = true;
+        startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+        startY = e.clientY || (e.touches && e.touches[0].clientY) || 0;
+        card.classList.add('dragging');
+        // ensure pointer capture
+        if (card.setPointerCapture) card.setPointerCapture(e.pointerId);
+      }
+      function onMove(e){
+        if (!isDragging) return;
+        currentX = (e.clientX || (e.touches && e.touches[0].clientX) || 0) - startX;
+        currentY = (e.clientY || (e.touches && e.touches[0].clientY) || 0) - startY;
+        const rotation = currentX / 12;
+        card.style.transform = translate(${currentX}px, ${currentY}px) rotate(${rotation}deg);
+        card.style.opacity = 0.98;
+      }
+      function endDrag(e){
+        if (!isDragging) return;
+        isDragging = false;
+        card.classList.remove('dragging');
+
+        const movedX = currentX;
+        // accept
+        if (movedX > threshold){
+          // animate off screen right
+          card.style.transition = 'transform .36s cubic-bezier(.2,.9,.3,1), opacity .24s';
+          card.style.transform = translate(${window.innerWidth}px, ${currentY}px) rotate(18deg);
+          card.style.opacity = 0;
+          playSound('match');
+          // register accept
+          swipeHistory.push({ index: currentIndex, action: 'accept', item });
+          matchedItem = item;
+          currentIndex++;
+          setTimeout(()=> {
+            renderDeck();
+            // show match flow
+            showMatchFlow(item);
+          }, 260);
+          return;
+        }
+        // reject
+        if (movedX < -threshold){
+          card.style.transition = 'transform .36s cubic-bezier(.2,.9,.3,1), opacity .24s';
+          card.style.transform = translate(-${window.innerWidth}px, ${currentY}px) rotate(-18deg);
+          card.style.opacity = 0;
+          playSound('reject');
+          swipeHistory.push({ index: currentIndex, action: 'reject', item });
+          currentIndex++;
+          setTimeout(()=> { renderDeck(); }, 260);
+          return;
+        }
+
+        // default: spring back
+        card.style.transition = 'transform .28s cubic-bezier(.2,.9,.3,1)';
+        card.style.transform = '';
+        card.style.opacity = 1;
+        currentX=currentY=0;
+      }
+    }
+
+    // manual accept/reject using buttons (for accessibility)
+    function manualAccept(){
+      if (!matchedItems || currentIndex >= matchedItems.length) return;
+      const item = matchedItems[currentIndex];
+      // animate top card quickly then do match
+      const top = deckContainer.querySelector('.card');
+      if (top){
+        top.style.transition = 'transform .36s cubic-bezier(.2,.9,.3,1), opacity .24s';
+        top.style.transform = translate(${window.innerWidth}px, 0) rotate(18deg);
+        top.style.opacity = 0;
+      }
+      playSound('match');
+      swipeHistory.push({ index: currentIndex, action: 'accept', item });
+      matchedItem = item;
+      currentIndex++;
+      setTimeout(()=>{ renderDeck(); showMatchFlow(item); }, 260);
+    }
+    function manualReject(){
+      if (!matchedItems || currentIndex >= matchedItems.length) return;
+      const item = matchedItems[currentIndex];
+      const top = deckContainer.querySelector('.card');
+      if (top){
+        top.style.transition = 'transform .36s cubic-bezier(.2,.9,.3,1), opacity .24s';
+        top.style.transform = translate(-${window.innerWidth}px, 0) rotate(-18deg);
+        top.style.opacity = 0;
+      }
+      playSound('reject');
+      swipeHistory.push({ index: currentIndex, action: 'reject', item });
+      currentIndex++;
+      setTimeout(()=>{ renderDeck(); }, 260);
+    }
+
+    function undoSwipe(){
+      if (!swipeHistory.length) return;
+      const last = swipeHistory.pop();
+      currentIndex = last.index;
+      renderDeck();
+      undoBtn.disabled = swipeHistory.length === 0;
+    }
+
+    function viewOnMap(lat,lng){
+      if (!lat && !lng) { alert('Location not available'); return; }
+      window.open(https://maps.google.com?q=${lat},${lng}, '_blank', 'noopener');
+    }
+
+    // loadMatchedItems - to be called by backend with array of matches
+    window.loadMatchedItems = function(items){
+      if (!Array.isArray(items)) return;
+      matchedItems = items.slice(); // copy
+      currentIndex = 0; swipeHistory = []; matchedItem = null;
+      renderDeck();
+    };
+
+    // developer helper: open match directly from external (optional)
+    window.openMatchFromExternal = function(itemObj){
+      matchedItem = itemObj;
+      document.getElementById('matchInfo').textContent = itemObj && itemObj.name ? You matched with ${itemObj.finderName || 'Finder'} — ${itemObj.name} : 'Matched';
+      openModalById('matchModal');
+    };
+
+    // show match flow
+    function showMatchFlow(item){
+      document.getElementById('matchInfo').textContent = item && item.name ? You matched with ${item.finderName || 'Finder'} — ${item.name} : 'You matched!';
+      openModalById('matchModal');
+      // after short delay, open chat automatically
+      setTimeout(()=> {
+        closeModalById('matchModal');
+        openMatchChat();
+      }, 900);
+    }
+
+    /* ========== CHAT SYSTEM ========== */
+    function openMatchChat(){
+      closeModalById('matchModal');
+      const el = document.getElementById('matchChat');
+      el.classList.add('active');
+      el.setAttribute('aria-hidden','false');
+      document.getElementById('chatHeaderTitle').textContent = (matchedItem && matchedItem.finderName) ? matchedItem.finderName : 'Finder';
+      document.getElementById('chatHeaderSubtitle').textContent = (matchedItem && matchedItem.name) ? matchedItem.name : 'Matched item';
+      const messages = document.getElementById('chatMessages');
+      messages.innerHTML = '<div id="chatEmptyPlaceholder" class="text-center text-slate-500"><p>No messages yet. Start the conversation.</p></div>';
+    }
+    function closeMatchChat(){
+      const el = document.getElementById('matchChat');
+      el.classList.remove('active');
+      el.setAttribute('aria-hidden','true');
+    }
+
+    function sendMatchChat(){
+      const input = document.getElementById('matchChatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      const messages = document.getElementById('chatMessages');
+      const el = document.createElement('div');
+      el.className = 'text-right mb-3';
+      el.innerHTML = <div class="bubble me">${escapeHtml(text)}<div class="text-xs text-white/70 mt-1" style="font-weight:600">Sent</div></div>;
+      const placeholder = document.getElementById('chatEmptyPlaceholder');
+      if (placeholder) placeholder.remove();
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+      input.value = '';
+      playSound('send');
+      // TODO: send message to backend here
+    }
+
+    /* ========== Coupon Modal + Redeem ========== */
+    function openCoupons(){ document.getElementById('couponModal').classList.add('active'); document.getElementById('couponModal').setAttribute('aria-hidden','false'); }
+    function closeCoupons(){ document.getElementById('couponModal').classList.remove('active'); document.getElementById('couponModal').setAttribute('aria-hidden','true'); }
+
+    function redeemCoupon(btn){
+      const code = btn.getAttribute('data-code');
+      if (!code) return;
+      // copy to clipboard
+      navigator.clipboard && navigator.clipboard.writeText(code).catch(()=>{});
+      // visual feedback
+      btn.disabled = true;
+      btn.classList.add('active');
+      btn.textContent = 'Copied ✓';
+      // show toast
+      const toast = document.getElementById('couponToast');
+      toast.textContent = Coupon ${code} copied to clipboard;
+      toast.classList.add('show');
+      setTimeout(()=>{ toast.classList.remove('show'); }, 2000);
+      // optionally: send redemption event to backend
+      // fetch('/api/redeem', { method:'POST', body: JSON.stringify({ code, user: 'currentUserId' }) });
+    }
+
+    /* ========== Misc initialisation ========== */
+    document.addEventListener('DOMContentLoaded', () => {
+      // show tutorial overlay only once (simple)
+      if (!localStorage.getItem('hasSeenTutorial')) {
+        openModalById('updatesModal'); // light way to show something; remove if undesired
+        localStorage.setItem('hasSeenTutorial','true');
+      }
+      // initialize star visuals
+      updateStars();
+    });
+
+    // Initialize star visuals (if script loaded after DOM)
+    try{ updateStars(); }catch(e){}
+  </script>
+</body>
+</html>
